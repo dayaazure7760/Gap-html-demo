@@ -9,11 +9,11 @@ on:
 
 env:
   IMAGE_TAG: ${{ github.sha }}
-  PROJECT_ID: first-scarab-464013-h1
+  PROJECT_ID: gap-html
   GAR_LOCATION: us-central1
-  REPO_NAME: test-repo
-  IMAGE_NAME: nodejs
-  SERVICE_NAME: nodejs-service
+  REPO_NAME: gap-html-repo
+  IMAGE_NAME: gap-html-image
+  SERVICE_NAME: html-service
   REGION: us-central1
 
 jobs:
