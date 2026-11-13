@@ -1,18 +1,5 @@
-# Use Node.js LTS (lightweight Alpine version)
-FROM node:18-alpine
+FROM nginx:alpine
 
-# Set working directory
-WORKDIR /usr/src/app
+COPY GAP-Nexus_prototype_v2.8.6.1.html /usr/share/nginx/html/index.html
 
-# Copy package.json and install dependencies
-COPY package*.json ./
-RUN npm install --only=production
-
-# Copy application files
-COPY . .
-
-# Expose port
-EXPOSE 3000
-
-# Run the application
-CMD ["npm", "start"]
+EXPOSE 80
