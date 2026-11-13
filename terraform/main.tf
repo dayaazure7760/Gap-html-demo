@@ -17,7 +17,7 @@ resource "google_cloud_run_service" "default" {
         image = var.container_image
 
         ports {
-          container_port = 5000
+          container_port = 80
         }
       }
     }
