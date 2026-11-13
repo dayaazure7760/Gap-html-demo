@@ -1,130 +1,67 @@
-# 🚀 Deploy Node.js Application to Google Cloud Run using Terraform & GitHub Actions
+# Deploy a Static Website to Google Cloud Run
 
-This project demonstrates how to **deploy a sample Node.js application** on **Google Cloud Run** using:
+This repository deploys a static HTML website to **Google Cloud Run**. The site is served by Nginx in a Docker container. **GitHub Actions** builds and scans the image, pushes it to **Google Artifact Registry**, and uses **Terraform** to deploy the Cloud Run service.
 
-- **Terraform** → for infrastructure provisioning
-- **GitHub Actions** → for CI/CD automation
-- **Google Artifact Registry (GAR)** → for container image storage
-- **GoDaddy** → for custom domain mapping
+## Project structure
 
-<img width="1280" height="720" alt="Deploy Nodejs Application on Google Cloud Run using GitHub Actions - Thumbnail" src="https://github.com/user-attachments/assets/6c04b187-8dbb-42e1-a110-503a87cefe10" />
-
-
-The pipeline covers the full cycle from **code commit** → **Docker build** → **security scans** → **deploy to google cloud run** → **domain mapping with godaddy**.
-
-### 📂 Project Structure:
-
-```
+```text
+.
 ├── .github/
 │   └── workflows/
 │       └── deploy.yml
 ├── terraform/
-│   ├── provider.tf
 │   ├── main.tf
-│   ├── variables.tf
-│   ├── variables.tfvars
-│   └── output.tf
+│   ├── output.tf
+│   ├── provider.tf
+│   ├── variable.tf
+│   └── terraform.tfvars
 ├── Dockerfile
-├── app.js
-├── package.json
-└── README.md
-
+└── GAP-Nexus_prototype_v2.8.6.1.html
 ```
 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+The Dockerfile copies `GAP-Nexus_prototype_v2.8.6.1.html` into the Nginx web root as `index.html`. Nginx listens on port **80**, which is also the container port configured for Cloud Run in Terraform.
 
-### 🏗️ Tech Stack:
+## Deployment prerequisites
 
-- **Node.js**
-- **Docker**
-- **Terraform**
-- **Google Cloud Run**
-- **GitHub Actions**
-- **Trivy (Aqua Security)**
+The workflow currently uses these Google Cloud settings, defined in `.github/workflows/deploy.yml`:
 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+- Project: `gap-html`
+- Region: `us-central1`
+- Artifact Registry repository: `gap-html-repo`
+- Image: `gap-html-image`
+- Cloud Run service: `html-service`
 
-### ⚙️ Prerequisites:
+Before deploying, make sure:
 
-Before running this project, make sure you have:
+1. The Google Cloud project exists and billing is enabled.
+2. The Artifact Registry Docker repository `gap-html-repo` exists in `us-central1`.
+3. The Google Cloud Storage bucket `test-terraform001-html-bucket` exists for Terraform's remote state. Its state prefix is `terraform/state`.
+4. The GitHub Actions service account has permissions to push to Artifact Registry, deploy Cloud Run services, enable the APIs used by the workflow, and grant the Cloud Run invoker role.
+5. Terraform 1.9.5 or later is installed if running Terraform locally.
 
-- A **Google Cloud Project**
-- **Google Artifact Registry** created (for storing Docker images)
-- **Service Account JSON key** with required roles (Artifact Registry Admin, Cloud Run Admin, IAM Admin, Service Account User, etc.)
-- **Terraform installed** (v1.9.5 or higher if running locally)
-- **GoDaddy Domain** (optional, for custom domain mapping)
+The workflow enables the Cloud Run, Artifact Registry, Cloud Build, and IAM APIs.
 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## GitHub secret
 
-### 🔑 GitHub Secrets:
+In the repository, open **Settings → Secrets and variables → Actions** and add:
 
-Set the following secrets in your repository (`Settings → Secrets and variables → Actions`):
+- `GOOGLE_APPLICATION_CREDENTIALS`: the service account key JSON contents used by `google-github-actions/auth`.
 
-- `GOOGLE_APPLICATION_CREDENTIALS` → contents of your GCP service account JSON key
+Do not commit the service account key to the repository.
 
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+## GitHub Actions deployment
 
-### 🛠️ GitHub Actions Workflow:
+The workflow in `.github/workflows/deploy.yml` runs for pushes to `main`, pull requests targeting `main`, and manual dispatch. It:
 
-The pipeline (`.github/workflows/deploy.yml`) performs the following steps:
+1. Checks out the repository and scans the source with Trivy.
+2. Builds the Docker image and pushes commit-tagged and `latest` images to Artifact Registry.
+3. Scans the built image with Trivy.
+4. Initializes Terraform, previews the changes, and applies them to Cloud Run.
 
-**1. Checkout** → Pulls source code from the repo
+The Cloud Run service is configured to allow unauthenticated access. The workflow deploys on pull requests as currently configured; pull requests from forks do not receive repository secrets.
 
-**2. Trivy FS Scan** → Scans source code for vulnerabilities
+After a successful deployment, Terraform outputs the Cloud Run service URL as `cloud_run_url`.
 
-**3. Build & Push Docker Image** → Builds Docker image & pushes to Google Artifact Registry
+## Custom domain (optional)
 
-**4. Trivy Docker Scan** → Scans built image for vulnerabilities
-
-**5. Deploy with Terraform** → Provisions Cloud Run service & deploys the container
-
-
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-### 🚀 Deployment Process:
-
-1. Push changes to the `main` branch → GitHub Actions pipeline kicks off automatically
-
-2. Docker image is built, scanned, and pushed to GAR
-
-3. Terraform provisions or updates the Cloud Run service with the new image
-
-4. Once deployed, Cloud Run will provide a service URL
-
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
-### 🌐 Custom Domain with GoDaddy:
-
-### 🔗 Steps to Link GoDaddy Domain with Google Cloud Run
-
-### 1. Prepare Your Cloud Run Service
-
-- Make sure your service is deployed and working at the Cloud Run URL (which you already have ✅).
-- Your service should allow unauthenticated access if you want the public to reach it.
-
-### 2. Verify Domain Ownership in Google Cloud:
-
-1. Go to **Google Cloud Console** → **Cloud Run** → Open **Cloud Run Service** → **Networking** → **Custom Domains**.
-2. Click **"Add Mapping"**.
-3. Choose your Cloud Run service.
-4. Enter your domain (like myapp.com or app.myapp.com).
-5. It will generate a TXT record that you must add to your GoDaddy DNS to prove ownership.
-
-### 3. Update DNS Records in GoDaddy:
-
-1. Log in to **GoDaddy** → go to **My Products** → select your domain → **DNS Management**.
-2. Add the records that Google Cloud asks for:
-   - **TXT Record** (for verification).
-   - Once verified, you’ll need to add `A records` or   `AAAA records`   (Google provides them during the mapping).
-  
-### 4. Provision SSL (HTTPS):
-
-- After DNS is configured, Google Cloud will automatically request and attach a free SSL certificate for your domain.
-- Cloud Run handles HTTPS automatically — no need to buy SSL from GoDaddy.
-- It may take 15–60 minutes for DNS propagation, Propagation time may vary, so don’t worry if it doesn’t work instantly.
-
-
-### 5. Access Your App:
-
-- Once the certificate is ready and DNS has propagated, you’ll be able to open:
-  👉 `https://yourdomainname.com` 
+Custom domain mapping is not created by this repository's Terraform configuration. To use a domain, first deploy the service, then create a domain mapping in Google Cloud Console and add the DNS verification and routing records it provides at your DNS host. Google provisions HTTPS for the mapping after DNS is configured; propagation and certificate provisioning can take time.
